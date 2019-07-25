@@ -2,7 +2,7 @@
 Generate potential email addresses from LinkedIn
 
 ## Description
-In 2017 scrapedin was created. The tool has been kept internal because there is a fear that linkedin will pursue legal action for publishing a scrapper. To overcome this fear, scrapedin is being published without any credit to the developers. If this tool is useful to you- give thanks by spreading the word.
+In 2017 scrapedin was created. The tool has been kept internal because there is a fear that linkedin will pursue legal action for publishing a scrapper. To overcome this fear, scrapedin is being published without any credit to the developers. It should be noted that this tool is to be used by professionals performing testing for organizations that they are authorized to work with. Malicious/illegal use of this tool is not the intention. Use at your own risk, as scrapedin does violate linkedins TOS. If this tool is useful to you- give thanks by spreading the word.
 
 ScrapedIn allows you to gather the names of employees on LinkedIn and generate emails in the format of your choosing at runtime (`-s` allows users to specify format strings).  This is useful for penetration tests that include phishing. This scrapper relies on selenium and the gecko webdriver. When you run the scrapper, you will be able to watch the scrapping happening live in a web browser. The reason scrapedin was not made headless is because it makes debugging issues exceptionally easy.
 
