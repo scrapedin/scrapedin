@@ -140,13 +140,9 @@ class Webpage:
 		self.enter_data('username', username)
 		self.enter_data('password', password)
 
-		# Submit login button
-		try:
-			self.page.execute_script("arguments[0].click();", self.page.find_element_by_class_name("btn__primary--large"))
-			WebDriverWait(self.page, 20).until(EC.visibility_of_element_located((By.CLASS_NAME, 'extended-nav')))
-		except exceptions.TimeoutException:
-			# Sometimes the javascript fails to execute. This means "sign in" will not be pressed.
-			self.page.execute_script("arguments[0].click();", self.page.find_element_by_class_name("btn__primary--large"))
+		# Find and click submit button by type
+		submit_btn = self.page.find_elements_by_xpath("//button[@type='submit']")[0]
+		submit_btn.click()
 
 	def apply_filters(self, company, url=None, georegion=None, industry=None, job_title=None):
 		'''
