@@ -6,6 +6,7 @@ import csv
 import os
 import getpass
 import logging
+import platform
 import time
 
 try:
@@ -26,6 +27,8 @@ except ImportError:
 	print('Did you forget to run setup.py?\npython3 setup.py install')
 	sys.exit(os.EX_SOFTWARE)
 
+ARCH = str(int(platform.architecture()[0].rstrip('bits').lstrip('win')))
+
 HELP_EPILOG = """
 You may specify multiple formats by using a comma. Using {domain} will
 dynamically pick the domain based off of the company name. Here are some common
@@ -41,10 +44,10 @@ Format                       Schema
 
 
 class Webpage:
-	def __init__(self, loglvl='INFO'):
+	def __init__(self, loglvl='INFO', geckodriver=None):
 		capabilities = webdriver.DesiredCapabilities().FIREFOX
 		capabilities["marionette"] = True
-		self.page = webdriver.Firefox(log_path='/dev/null', capabilities=capabilities)
+		self.page = webdriver.Firefox(executable_path=os.path.join(os.path.dirname(__file__), 'webdriver', ARCH, 'geckodriver'), log_path='/dev/null', capabilities=capabilities)
 		self.employee_data = {}
 		self.log = logging.getLogger(
 			logging.basicConfig(level=getattr(logging, loglvl), format="%(name)-15s %(levelname)-10s %(asctime)-10s %(message)s")
