@@ -27,7 +27,14 @@ except ImportError:
 	print('Did you forget to run setup.py?\npython3 setup.py install')
 	sys.exit(os.EX_SOFTWARE)
 
-ARCH = str(int(platform.architecture()[0].rstrip('bits').lstrip('win')))
+ARCH = platform.architecture()[0]
+if '64' in ARCH:
+    ARCH = '64'
+elif '32' in ARCH:
+    ARCH = '32'
+else:
+    print('[-] Your architecture isn\'t supported. What are you using, DOS!? Doofus >_<')
+    sys.exit(os.EX_SOFTWARE)
 
 HELP_EPILOG = """
 You may specify multiple formats by using a comma. Using {domain} will
