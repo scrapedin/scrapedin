@@ -6,7 +6,6 @@ import csv
 import os
 import getpass
 import logging
-import platform
 import time
 
 try:
@@ -26,6 +25,11 @@ except ImportError:
 	print('Missing required package: selenium\n')
 	print('Did you forget to run setup.py?\npython3 setup.py install')
 	sys.exit(os.EX_SOFTWARE)
+
+if not sys.version_info[0:2] >= (3, 3):
+    print("This script depends on python version 3.3 or higher. We recommend the latest version available from 'https://www.python.org/downloads/'")
+    sys.exit(os.EX_SOFTWARE)
+
 
 ARCH = platform.architecture()[0]
 if '64' in ARCH:

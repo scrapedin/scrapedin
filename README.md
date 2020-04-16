@@ -38,7 +38,7 @@ A CSV file with the users name, email, title, location and profie URL is output 
 
 #### Pipenv method (recommended)
 
-Install specific versions of selenium & geckodriver via pipenv for a safer, more pleasant scraping experience. This method will allow you to execute scrapedin via `pipenv shell` or `pipenv run scrapedin.py` and will respect your globally installed external libraries.
+Install specific versions of selenium & geckodriver via pipenv for a safer, more pleasant scraping experience. This method will allow you to execute scrapedin via `pipenv shell` or `pipenv run python scrapedin.py` and will respect your globally installed external libraries.
 
 **Simply install via**
 
@@ -46,7 +46,7 @@ Install specific versions of selenium & geckodriver via pipenv for a safer, more
 git clone https://github.com/scrapedin/scrapedin
 cd scrapedin
 pipenv install
-pipenv run scrapedin.py 
+pipenv run python scrapedin.py 
 ```
 
 **Shortcut script**
