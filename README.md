@@ -31,7 +31,7 @@ A CSV file with the users name, email, title, location and profie URL is output 
 * Selenium
 * Firefox-ESR
 * Gecko webdriver
-* Python 3.6+
+* Python 3.3+
 
 
 ## Install Dependencies:
