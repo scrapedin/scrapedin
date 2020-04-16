@@ -31,16 +31,48 @@ A CSV file with the users name, email, title, location and profie URL is output 
 * Selenium
 * Firefox-ESR
 * Gecko webdriver
-* Python 3.3+
+* Python 3.6+
 
 
 ## Install Dependencies:
-Selenium/Geckodriver:
 
+#### Pipenv method (recommended)
 
-	sudo python3 setup.py install
+Install specific versions of selenium & geckodriver via pipenv for a safer, more pleasant scraping experience. This method will allow you to execute scrapedin via `pipenv shell` or `pipenv run python scrapedin.py` and will respect your globally installed external libraries.
+
+**Simply install via**
+
+```
+git clone https://github.com/scrapedin/scrapedin
+cd scrapedin
+pipenv install
+pipenv run python scrapedin.py 
+```
+
+**Shortcut script**
+
+For added convenience, simply add the following wrapper script to your `/usr/local/bin/` or `$HOME/.local/bin/` path.
+
+```
+cat <<EOF >> $HOME/.local/bin/scrapedin
+#!/bin/bash
+exec pipenv run python $(pwd)/scrapedin.py "\$@"
+
+EOF
+chmod +x $HOME/.local/bin/scrapedin
+```
 
 ## Manually install dependencies:
+
+**NOTE:** As of v0.2.dev0, this is no longer required
+
+`python3 setup.py install`
+
+```
+Scrapedin will use the local geckodriver executable path in webdriver/<arch>/geckodriver which is v0.24.0. Manual installation is no longer required.
+```
+
+#### Manually install geckodriver (optional)
 Gecko Webdriver:
 
 Find the current release of the Gecko Webdriver here (https://github.com/mozilla/geckodriver/releases).  Once you have the correct web address, follow these instructions:

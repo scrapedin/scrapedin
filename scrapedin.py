@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 import sys
 import argparse
 import re
@@ -26,6 +26,20 @@ except ImportError:
 	print('Did you forget to run setup.py?\npython3 setup.py install')
 	sys.exit(os.EX_SOFTWARE)
 
+if not sys.version_info[0:2] >= (3, 3):
+    print("This script depends on python version 3.3 or higher. We recommend the latest version available from 'https://www.python.org/downloads/'")
+    sys.exit(os.EX_SOFTWARE)
+
+
+ARCH = platform.architecture()[0]
+if '64' in ARCH:
+    ARCH = '64'
+elif '32' in ARCH:
+    ARCH = '32'
+else:
+    print('[-] Your architecture isn\'t supported. What are you using, DOS!? Doofus >_<')
+    sys.exit(os.EX_SOFTWARE)
+
 HELP_EPILOG = """
 You may specify multiple formats by using a comma. Using {domain} will
 dynamically pick the domain based off of the company name. Here are some common
@@ -41,10 +55,10 @@ Format                       Schema
 
 
 class Webpage:
-	def __init__(self, loglvl='INFO'):
+	def __init__(self, loglvl='INFO', geckodriver=None):
 		capabilities = webdriver.DesiredCapabilities().FIREFOX
 		capabilities["marionette"] = True
-		self.page = webdriver.Firefox(log_path='/dev/null', capabilities=capabilities)
+		self.page = webdriver.Firefox(executable_path=os.path.join(os.path.dirname(__file__), 'webdriver', ARCH, 'geckodriver'), log_path='/dev/null', capabilities=capabilities)
 		self.employee_data = {}
 		self.log = logging.getLogger(
 			logging.basicConfig(level=getattr(logging, loglvl), format="%(name)-15s %(levelname)-10s %(asctime)-10s %(message)s")
