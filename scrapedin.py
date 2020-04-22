@@ -5,6 +5,7 @@ import re
 import csv
 import os
 import getpass
+import platform
 import logging
 import time
 
