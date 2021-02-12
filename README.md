@@ -49,6 +49,12 @@ pipenv install
 pipenv run python scrapedin.py 
 ```
 
+OR if you prefer not to use a pipenv
+
+```
+pip install .
+```
+
 **Shortcut script**
 
 For added convenience, simply add the following wrapper script to your `/usr/local/bin/` or `$HOME/.local/bin/` path.
@@ -61,12 +67,6 @@ exec pipenv run python $(pwd)/scrapedin.py "\$@"
 EOF
 chmod +x $HOME/.local/bin/scrapedin
 ```
-
-## Manually install dependencies:
-
-**NOTE:** As of v0.2.dev0, this is no longer required
-
-`python3 setup.py install`
 
 ```
 Scrapedin will use the local geckodriver executable path in webdriver/<arch>/geckodriver which is v0.24.0. Manual installation is no longer required.
