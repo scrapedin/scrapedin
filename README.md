@@ -31,7 +31,7 @@ A CSV file with the users name, email, title, location and profie URL is output 
 * Selenium
 * Firefox-ESR
 * Gecko webdriver
-* Python 3.3+
+* Python 3.6+
 
 
 ## Install Dependencies:
@@ -67,6 +67,12 @@ exec pipenv run python $(pwd)/scrapedin.py "\$@"
 EOF
 chmod +x $HOME/.local/bin/scrapedin
 ```
+
+## Manually install dependencies:
+
+**NOTE:** As of v0.2.dev0, this is no longer required
+
+`python3 setup.py install`
 
 ```
 Scrapedin will use the local geckodriver executable path in webdriver/<arch>/geckodriver which is v0.24.0. Manual installation is no longer required.

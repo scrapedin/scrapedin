@@ -54,8 +54,6 @@ Format                       Schema
 [Last Name].[First Name]     {last}.{first}@{domain}.com
 """
 
-USER_ENTITY_CLASS = 'entity-result__item'  # Historically search-result__wrapper
-
 
 class Webpage:
     def __init__(self, loglvl='INFO', geckodriver=None):
