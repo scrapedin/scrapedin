@@ -58,7 +58,7 @@ Format                       Schema
 
 
 class Webpage:
-    def __init__(self, loglvl='INFO', geckodriver=None):
+    def __init__(self, loglvl='INFO', geckodriver=None, *args, **kwargs):
         capabilities = webdriver.DesiredCapabilities().FIREFOX
         capabilities["marionette"] = True
         self.page = webdriver.Firefox(
@@ -442,6 +442,7 @@ class Webpage:
         '''
         if not self.employee_data:
             return None
+        self.log.info(f"Writing {len(self.employee_data)} users' data to {filename}")
         csv_file = csv.writer(open(filename, "w"))
 
         for name, emp_data in self.employee_data.items():
@@ -451,6 +452,7 @@ class Webpage:
                 last_name = name.split()[-1]
                 data = [first_name, last_name, email] + emp_data
                 csv_file.writerow(data)
+        self.log.info("Data write complete")
 
     def email_formatter(self, name, company, schema):
         '''
