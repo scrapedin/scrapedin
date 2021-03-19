@@ -9,6 +9,8 @@ import platform
 import logging
 import time
 
+from urllib.parse import urlparse, parse_qs
+
 try:
     from tabulate import tabulate
 except ImportError:
@@ -67,6 +69,81 @@ class Webpage:
             logging.basicConfig(level=getattr(logging, loglvl),
                                 format="%(name)-15s %(levelname)-10s %(asctime)-10s %(message)s")
         )
+        self._pagenum = 0
+        self._maxusers = kwargs.get('max_users', float('inf'))
+        self.log.info(f"Max users: {self._maxusers}")
+        self._count = 0
+
+    @property
+    def page_number(self):
+        return self._pagenum
+
+    def await_page_navigation_load(self):
+        self.log.debug("Awaiting page load...")
+        try:
+            WebDriverWait(self.page, 5).until(EC.visibility_of_element_located((By.CLASS_NAME, "global-nav__nav")))
+        except:
+            self.log.error("Timeout or an exception occured while waiting for the page to load")
+            return False
+        self.log.debug("Page successfully loaded")
+
+    def await_next_load(self):
+        try:
+            WebDriverWait(self.page, 20).until(EC.visibility_of_element_located((By.CLASS_NAME, "artdeco-pagination__button--next")))
+        except:
+            self.log.error("Next button failed to load after 20 seconds")
+            return False
+        self.close_msgbox()
+        return True
+
+    def get_page_number(self):
+        self.log.debug("Getting page number")
+        url = urlparse(self.page.current_url)
+        try:
+            p = parse_qs(url.query)['page']
+            p = int(p[-1])
+            if p > 0 and p != self._pagenum:
+                self._pagenum = p
+        except KeyError:
+            # This is the first page, in which case page may not exist in the url
+            self._pagenum = 1
+        return self.page_number
+
+    def get_next(self):
+        self.log.debug("Getting next button")
+        try:
+            return self.page.find_element_by_class_name("artdeco-pagination__button--next")
+        except exceptions.NoSuchElementException:
+            self.log.error("Next button not found")
+            return False
+
+    def click_next(self):
+        self.log.info("Goto Next Page")
+        next_btn = self.get_next()
+        try:
+            if not next_btn.is_enabled():
+                # If this is true then the Next button is "disabled". This happens when there's no more pages
+                self.log.info("Pagination complete")
+                return False
+
+            next_btn.click()
+            self.await_page_navigation_load()
+            self.get_page_number()
+            return True
+        except exceptions.NoSuchElementException as ex:
+            self.log.error("Unable to find next button")
+            raise ex
+
+    def close_msgbox(self):
+        try:
+            msgbox = self.page.find_element_by_class_name("msg-overlay-bubble-header")
+            msgbox_status = msgbox.get_attribute('data-control-name')
+            if msgbox_status == "overlay.minimize_connection_list_bar":
+                self.log.debug("Minimizing message box")
+                msgbox.click()
+
+        except exceptions.NoSuchElementException:
+            self.log.debug("No message box. Proceeding")
 
     def enter_data(self, field, text):
         '''
@@ -216,18 +293,63 @@ class Webpage:
         self.log.debug("Filtered URL: " + url)
         return url
 
-    def cycle_users(self, company, url, max_users=None):
+    def process_employees(self, employee_elements):
+        count = 1
+        # No employee elements present
+        if count > len(employee_elements):
+            if not self.click_next():
+                return os.EX_OK
+
+        for employee in employee_elements:
+            # The elements of LinkedIn change frequently, but the text data of the elements is more-or-less reliable.
+            # It's better to split via newline than parse xpaths.
+            data = employee.text.split('\n')
+            if "LinkedIn Member" not in data[0] and len(data) >= 5:
+                name = Webpage.sanitize_name(data[0])
+                title_text = data[3]
+                region = data[4]
+            else:
+                count += 1
+                continue
+            try:
+                # This line/element does not always exist, so an exception will always be raised in this case and must be handled.
+                alt_text = employee.find_element_by_class_name('search-result__snippets').text
+                if alt_text:
+                    self.log.debug("Search results alt-text found")
+            except exceptions.NoSuchElementException:
+                self.log.debug("Alt text could not be found. Splicing from title text.")
+                alt_text = False
+            title, _, company = title_text.partition(' at ')
+            if alt_text and not company:
+                alt_text = alt_text.lstrip('Current: ')
+                t, _, company = alt_text.partition(' at ')
+                if not title:
+                    title = t
+            dept = self.dept_wizard(title)
+            # If company is still empty at this point, bail out to unemployment
+            company = company or 'UNEMPLOYED'
+            try:
+                url = employee.find_element_by_xpath("//a[@class='app-aware-link']").get_attribute('href')
+            except (IndexError, exceptions.NoSuchElementException):
+                self.log.debug("No user link found. Skipping to next.")
+                return True
+
+            if not name:
+                continue
+            for person in name:
+                self.log.info(person)
+                self.employee_data.update({person: [dept, title, company, region, url]})
+
+    def cycle_users(self, company, url):
         '''
         You must run the login method before cycle_users will run.  Once the login method has run, cycle_users can
         collect the names and titles of employees at the company you specify.  This method requires the company name
         and optional value max_users from argparse.  See the login method for a code example.
 
         :param argparse company:
-        :param argpase max_users:
         :rtype: None (self.employee_data will be populated with names, titles and profile URLs)
         '''
-        # Wait for home screen after login
-        WebDriverWait(self.page, 20).until(EC.visibility_of_element_located((By.XPATH, "//nav[@id='primary-navigation']")))
+        self.await_page_navigation_load()
         self.log.debug("URL: " + str(url))
         try:
             self.page.get(url)
@@ -235,134 +357,46 @@ class Webpage:
             self.log.error("An error occurred while getting the company page: \n{0}".format(err))
             self.log.critical("[!] Check the company name or URL used")
             return os.EX_USAGE
-        count = 1  # WebElements cannot be used for iteration..
-        current_page = 1
 
-        if not max_users:
-            max_users = float('inf')
-
-        while max_users > len(self.employee_data) and current_page < 100:
-            self.page.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            try:
-                WebDriverWait(self.page, 20).until(EC.visibility_of_element_located((By.CLASS_NAME, 'active')))
-                # Check if the page contains the "no search results" class. This means we are out of users
-                # This will raise a NoSuchElementException if the element is not found
-                self.page.find_element_by_class_name("search-no-results__container")
-                break
-            except exceptions.NoSuchElementException:
-                pass
-            except exceptions.TimeoutException:
-                # Page didn't load correctly after 20 seconds, cannot reliably recover. Bailing.
-                return
-
+        self._count = 1  # WebElements cannot be used for iteration..
+        self.get_page_number()
+        self.log.info(f"Collecting a maximum of {self._maxusers} data...")
+        while self._maxusers > len(self.employee_data) and self.page_number < 100:
+            self.await_page_navigation_load()
             try:
                 WebDriverWait(self.page, 5).until(EC.visibility_of_element_located((By.CLASS_NAME, 'name')))
             except exceptions.TimeoutException:
                 try:
                     if self.page.find_elements_by_class_name('actor-name'):
-                        # If this is true, the page is filled with "LinkedIn Member".  It doesn't mean there's no users
-                        # available on the page.  If this is the case, click next.
-                        current_page += 1
-                        if 'disabled=""' in self.page.find_element_by_class_name(
-                                "artdeco-pagination__button--next").parent.page_source:
-                            # If this is true then the Next button is "disabled". This happens when there's no more pages
+                        # If this is true, the page is filled with "LinkedIn Member".
+                        # It doesn't mean there's no users available on the page.
+                        # If this is the case, click next.
+                        if not self.click_next():
                             break
-                        self.page.execute_script("arguments[0].click();", self.page.find_element_by_class_name(
-                            "artdeco-pagination__button--next"))
                         continue
+
                 except exceptions.NoSuchElementException:
                     # Reached when there's no more users available on the page.
                     break
 
-            try:
-                # Get the current page number (at the bottom of a company search)
-                # The value returned from the HTML looks like this: '1\nCurrent page'
-                new_page = int(self.page.find_elements_by_class_name('active')[-1].text.split()[0])
-
-            except ValueError:
-                # If there's only one page, linkedin doesn't show page numbers at the bottom.  The only result
-                # will be the text string "people", therefore when we try to convert the value to int we raise
-                # an exception
-                new_page = 1
-
-            except IndexError:
-                # Page likely came back with "No more users" even though there appeared to be pages left
-                return
-
-            except exceptions.StaleElementReferenceException:
-                # Handles a race condition where elements are found but are not populated yet.
-                continue
-
-            for pagnation in self.page.find_elements_by_class_name("artdeco-pagination__button"):
-                if pagnation.text != "Next":
-                    continue
-
-                if not pagnation.is_enabled():
-                    # Next button is disabled.. This is linkedins way of saying "We are done here"
-                    return
-
-            if current_page != new_page:
-                # The script is too fast.  This verifies a new page has loaded before proceeding.
-                continue
-
-            # Scroll to the bottom of the page loads all elements (employee_names)
+            self.get_page_number()
+            self.log.debug("Scroll to bottom to render users")
             self.page.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            self.await_next_load()
             # Give the elements a second to populate fully
             time.sleep(1)
             # finds each employee element by a globally set class name
-            employee_elements = self.page.find_elements_by_xpath("//div[@class='entity-result__item']")
-            self.log.debug(employee_elements)
-            for employee in employee_elements:
-                if count > len(employee_elements):
-                    count = 1
-                    current_page += 1
-                    # click next page
-                    try:
-                        self.page.execute_script("arguments[0].click();", self.page.find_element_by_class_name(
-                            "artdeco-pagination__button--next"))
-                        break
-                    except exceptions.NoSuchElementException:
-                        # No more pages
-                        return os.EX_OK
+            try:
+                employee_elements = self.page.find_elements_by_xpath("//div[@class='entity-result__item']")
+            except exceptions.NoSuchElementException as ex:
+                self.log.info("No entities")
+                if not self.click_next():
+                    break
+                continue
+            self.process_employees(employee_elements)
+            self.click_next()
+        self.log.info(f"User cycling complete. Users collected: {len(self.employee_data)}")
 
-                try:
-                    # The elements of LinkedIn change frequently, but the text data of the elements is more-or-less reliable.
-                    # It's better to split via newline than parse xpaths.
-                    data = employee.text.split('\n')
-                    if "LinkedIn Member" not in data[0] and len(data) >= 5:
-                        name = Webpage.sanitize_name(data[0])
-                        title_text = data[3]
-                        region = data[4]
-                    else:
-                        count += 1
-                        continue
-                    try:
-                        # This line/element does not always exist, so an exception will always be raised in this case and must be handled.
-                        alt_text = employee.find_element_by_class_name('search-result__snippets').text
-                    except exceptions.NoSuchElementException:
-                        alt_text = False
-                    title, _, company = title_text.partition(' at ')
-                    if alt_text and not company:
-                        alt_text = alt_text.lstrip('Current: ')
-                        t, _, company = alt_text.partition(' at ')
-                        if not title:
-                            title = t
-                    dept = self.dept_wizard(title)
-                    # If company is still empty at this point, bail out to unemployment
-                    company = company or 'UNEMPLOYED'
-                    url = employee.find_element_by_xpath("//a[@class='app-aware-link']").get_attribute('href')
-
-                except (IndexError, exceptions.NoSuchElementException):
-                    count += 1
-                    continue
-
-                if not name:
-                    continue
-                for person in name:
-                    self.log.info(person)
-                    self.employee_data.update({person: [dept, title, company, region, url]})
-
-                    count += 1
 
     @staticmethod
     def dept_wizard(linkedin_title):
@@ -557,7 +591,7 @@ def main():
     web = None
     try:
         password = getpass.getpass(prompt='LinkedIn Password: ')
-        web = Webpage(loglvl=args.loglvl)
+        web = Webpage(loglvl=args.loglvl, max_users=args.max_users)
         web.login(username=args.username, password=password)
         del password
         if not args.url:
@@ -568,12 +602,12 @@ def main():
                 if isinstance(filtered_url, (int)):
                     return filtered_url
                 # Filtered URL
-                web.cycle_users(args.company, filtered_url, args.max_users)
+                web.cycle_users(args.company, filtered_url)
             else:  # Default URL
                 url += "company={0}".format(args.company)
-                web.cycle_users(args.company, url, args.max_users)
+                web.cycle_users(args.company, url)
         else:  # User-defined URL
-            web.cycle_users(args.company, args.url, args.max_users)
+            web.cycle_users(args.company, args.url)
         web.out_csv(filename=args.filename, company=args.company, schema=args.schema)
         web.page.quit()
 
@@ -581,7 +615,6 @@ def main():
         if web:
             web.out_csv(args.filename, args.company, args.schema)
         return os.EX_OK
-
 
 if __name__ == '__main__':
     if sys.version_info < (3, 3):
