@@ -214,6 +214,7 @@ class Webpage:
         else:
             filters.append('title=')
         # Join additional parameters to the URL by ampersand (&). Order doesn't matter.
+        filters.append('origin=FACETED_SEARCH')
         url += "&".join(filters).lstrip("&") if len(filters) > 1 else filters[0]
         self.log.debug("Filtered URL: " + url)
         return url
@@ -229,7 +230,7 @@ class Webpage:
         :rtype: None (self.employee_data will be populated with names, titles and profile URLs)
         '''
         # Wait for home screen after login
-        WebDriverWait(self.page, 20).until(EC.visibility_of_element_located((By.XPATH, "//nav[@id='primary-navigation']")))
+        WebDriverWait(self.page, 20).until(EC.visibility_of_element_located((By.XPATH, "//*[@id='global-nav']/div")))
         self.log.debug("URL: " + str(url))
         try:
             self.page.get(url)
